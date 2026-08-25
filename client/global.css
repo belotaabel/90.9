@@ -51,7 +51,7 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .ball-history { margin: 18px 0 20px; padding: 14px; border: 1px solid #1c713b; border-radius: 18px; background: linear-gradient(145deg, #061c12, #0a2d1a); box-shadow: 0 0 14px #0d552d, inset 0 0 14px #0a3b20; }
 .ball-history h2 { margin: 0 0 10px; color: #f1e76a; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 15px; }
 .ball-history-list { display: flex; flex-wrap: wrap; gap: 7px; min-height: 29px; align-items: center; }
-.ball-history-list span { display: grid; width: 31px; height: 29px; place-items: center; border-radius: 7px; background: #173d26; color: #9ab3a0; font-size: 12px; font-weight: 700; }
+.ball-history-list span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; background: #173d26; color: #9ab3a0; font-size: 12px; font-weight: 700; }
 .ball-history-list span.latest { background: linear-gradient(145deg, #f4f526, #c5ce12); box-shadow: 0 0 10px #e7ed22; color: #273215; }
 .ball-history-list small { color: #789583; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 12px; }
 .number-board { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 8px; width: 100%; overflow: hidden; }
