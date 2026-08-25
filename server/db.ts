@@ -327,7 +327,10 @@ export async function getActiveGame(gameType: GameType = "90") {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock($1)", [90210]);
+    // Keep the 90-ball and 75-ball game lifecycles independent. A shared
+    // advisory lock here lets activity in one mode serialize acquisition of
+    // the other mode's game, especially during concurrent joins/ticks.
+    await client.query("SELECT pg_advisory_xact_lock($1, $2)", [90210, gameType === "75" ? 75 : 90]);
     const result = await client.query(
       `SELECT id, status, prize_pool, called_numbers, current_number
        FROM games
