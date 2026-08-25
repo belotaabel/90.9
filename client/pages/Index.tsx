@@ -215,15 +215,31 @@ export default function Index() {
     setCountdown(5);
     setNotice("ጨዋታው ይጀምራል...");
   };
+  const winningLines = (card: Card | undefined) => {
+    if (!card) return [];
+    const complete = (values: Cell[]) =>
+      values.every((cell) => cell === null || cell === 0 || called.has(cell));
+    const rows = card.rows
+      .map((row, index) => (complete(row) ? index + 1 : null))
+      .filter((line): line is number => line !== null);
+    if (gameType === "90") return rows;
+
+    const columns = card.rows[0]
+      ?.map((_, columnIndex) =>
+        complete(card.rows.map((row) => row[columnIndex])) ? columnIndex + 6 : null,
+      )
+      .filter((line): line is number => line !== null) ?? [];
+    const diagonals = [
+      complete(card.rows.map((row, index) => row[index])) ? 11 : null,
+      complete(card.rows.map((row, index) => row[4 - index])) ? 12 : null,
+    ].filter((line): line is number => line !== null);
+    const corners = [card.rows[0]?.[0], card.rows[0]?.[4], card.rows[4]?.[0], card.rows[4]?.[4]]
+      .every((cell) => cell !== undefined && (cell === 0 || called.has(cell)));
+    return [...rows, ...columns, ...diagonals, ...(corners ? [13] : [])];
+  };
   const winnerCardIds = selected.filter((id) => {
-    const card = cardForId(id);
-    return (
-      card?.rows.filter((row) =>
-        row
-          .filter((cell): cell is number => cell !== null && cell !== 0)
-          .every((cell) => called.has(cell)),
-      ).length ?? 0
-    ) >= 2;
+    const lines = winningLines(cardForId(id));
+    return gameType === "75" ? lines.length > 0 : lines.length >= 2;
   });
   const winnerCardId = winnerCardIds[0] ?? null;
   const winner = winnerCardIds.length > 0;
@@ -241,18 +257,7 @@ export default function Index() {
     }, 5000);
     return () => window.clearTimeout(resetTimer);
   }, [winner, playing]);
-  const winningRows =
-    winnerCardId === null
-      ? []
-      : (cards.find((item) => item.card_number === winnerCardId)?.rows ?? [])
-          .map((row, index) =>
-            row
-              .filter((cell): cell is number => cell !== null && cell !== 0)
-              .every((cell) => called.has(cell))
-              ? index + 1
-              : null,
-          )
-          .filter((row): row is number => row !== null);
+  const winningRows = winningLines(cardForId(winnerCardId ?? -1));
   if (screen === "landing")
     return (
       <main className="app-shell landing-shell">
