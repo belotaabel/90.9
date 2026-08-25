@@ -329,10 +329,10 @@ export default function Index() {
         </section>
         {gameType === "75" ? (
           <section className="number-board number-board-75" aria-label="75-ball number board">
-            {['B', 'I', 'N', 'G', 'O'].map((letter, columnIndex) => (
-              <div className="number-board-column" key={letter}>
+            {['B', 'I', 'N', 'G', 'O'].map((letter, rowIndex) => (
+              <div className="number-board-row" key={letter}>
                 <b className="number-board-label">{letter}</b>
-                {Array.from({ length: 15 }, (_, index) => columnIndex * 15 + index + 1).map((n) => (
+                {Array.from({ length: 15 }, (_, index) => rowIndex * 15 + index + 1).map((n) => (
                   <button key={n} className={called.has(n) ? "active" : ""}>{n}</button>
                 ))}
               </div>
