@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { advanceSelectingGame, callNextNumber, claimGameWinners, getActiveGame, persistSelectedCards, readGameState, type GameType } from "./db";
+import type { BingoWinner } from "@shared/api";
 
 type GameState = {
   gameId: string;
@@ -8,6 +9,7 @@ type GameState = {
   status: "waiting" | "active" | "complete";
   playerCount: number;
   prizeAmount: number;
+  winners: BingoWinner[];
 };
 
 function toGameState(row: any): GameState {
@@ -18,6 +20,12 @@ function toGameState(row: any): GameState {
     status: row.status === "finished" ? "complete" : row.status === "playing" ? "active" : "waiting",
     playerCount: Number(row.player_count ?? 0),
     prizeAmount: Number(row.prize_pool ?? 0),
+    winners: (row.winners ?? []).map((winner: BingoWinner) => ({
+      ...winner,
+      userId: Number(winner.userId),
+      cardNumber: Number(winner.cardNumber),
+      prizeAmount: Number(winner.prizeAmount),
+    })),
   };
 }
 

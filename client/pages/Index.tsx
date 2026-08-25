@@ -9,6 +9,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { io } from "socket.io-client";
+import type { BingoWinner } from "@shared/api";
 
 type Cell = number | null;
 type Card = { card_number: number; rows: Cell[][] };
@@ -26,6 +27,7 @@ type GameState = {
   playerCount: number;
   prizeAmount: number;
   status: string;
+  winners: BingoWinner[];
 };
 declare global {
   interface Window {
@@ -237,12 +239,10 @@ export default function Index() {
       .every((cell) => cell !== undefined && (cell === 0 || called.has(cell)));
     return [...rows, ...columns, ...diagonals, ...(corners ? [13] : [])];
   };
-  const winnerCardIds = selected.filter((id) => {
-    const lines = winningLines(cardForId(id));
-    return gameType === "75" ? lines.length > 0 : lines.length >= 2;
-  });
+  const winners = game?.winners ?? [];
+  const winner = winners.length > 0;
+  const winnerCardIds = winners.map((winner) => winner.cardNumber);
   const winnerCardId = winnerCardIds[0] ?? null;
-  const winner = winnerCardIds.length > 0;
   useEffect(() => {
     if (!winner || !playing) return;
     const resetTimer = window.setTimeout(() => {
@@ -376,13 +376,13 @@ export default function Index() {
             </div>
             <div className="winner-modal" role="status">
               <div className="winner-badge">BINGO!</div>
-              <h2>{winnerCardIds.length > 1 ? "አሸናፊዎች ተገኝተዋል" : "አሸናፊ ተገኝቷል"}</h2>
-              <div className="winner-prize">{((game?.prizeAmount ?? 0) / winnerCardIds.length).toFixed(2)} ብር / እያንዳንዱ</div>
-              <p>የአሸናፊው ስም: <b>{user?.display_name}</b></p>
+              <h2>{winners.length > 1 ? "አሸናፊዎች ተገኝተዋል" : "አሸናፊ ተገኝቷል"}</h2>
+              <div className="winner-prize">{((game?.prizeAmount ?? 0) / winners.length).toFixed(2)} ብር / እያናቸው</div>
+              <p>የአሸናፊው ስም: <b>{winners.map((item) => item.displayName).join(", ")}</b></p>
               <p>የአሸናፊ ካርዶች: <b>{winnerCardIds.join(", ")}</b></p>
-              <p>የተዘጉ መስመሮች: <b>{winningRows.join(", ")}</b></p>
+              <p>የተዘጉ መስመሮች: <b>{winners.map((item) => item.rows.join(", ")).join("; ")}</b></p>
               {winnerCardIds.length <= 3 && <div className="winner-card-preview">
-                {winnerCardIds.map((id) => { const card = cardForId(id); return card && <CardView key={id} card={card} selected called={called} onClick={() => undefined} />; })}
+                {winnerCardIds.map((id) => { const card = cardForId(id); return card && <CardView key={id} card={card} selected called={called} onClick={() => undefined} gameType={gameType} />; })}
               </div>}
               {winnerCardIds.length > 3 && <small>ከ{winnerCardIds.length} አሸናፊዎች የተነሳ card previews አልታዩም።</small>}
               <small>አዲስ ጨዋታ በቅርቡ ይጀምራል...</small>

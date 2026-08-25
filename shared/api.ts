@@ -10,3 +10,13 @@
 export interface DemoResponse {
   message: string;
 }
+
+export type BingoGameType = "90" | "75";
+
+export interface BingoWinner {
+  userId: number;
+  displayName: string;
+  cardNumber: number;
+  rows: number[];
+  prizeAmount: number;
+}

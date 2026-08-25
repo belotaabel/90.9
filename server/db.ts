@@ -489,7 +489,16 @@ export async function readGameState(gameId: string) {
      GROUP BY g.id`,
     [gameId],
   );
-  return result.rows[0];
+  if (!result.rowCount) return null;
+  const winners = await db.query(
+    `SELECT w.user_id AS "userId", u.display_name AS "displayName",
+            w.card_number AS "cardNumber", w.winning_rows AS rows,
+            w.prize_amount AS "prizeAmount"
+     FROM winners w JOIN users u ON u.id = w.user_id
+     WHERE w.game_id = $1 ORDER BY w.id`,
+    [gameId],
+  );
+  return { ...result.rows[0], winners: winners.rows };
 }
 
 export async function callNextNumber(gameId: string, gameType: GameType = "90") {
