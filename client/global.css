@@ -50,7 +50,7 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .number-board-columns { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 5px; margin: 12px 0 5px; color: #ffe55e; text-align: center; font-size: 13px; }
 .number-board { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 8px; width: 100%; overflow: hidden; }
 .number-board button { min-width: 0; aspect-ratio: 1.1; border: 1px solid #47377e; border-radius: 8px; background: linear-gradient(145deg, #252051, #0d0a2b); box-shadow: inset 0 0 7px #34236c; font-size: 17px; transition: transform .15s ease, box-shadow .15s ease; }
-.number-board-75 { display: grid; gap: 5px; height: 500px; padding: 14px 10px; border: 1px solid #1c713b; border-radius: 22px; background: linear-gradient(145deg, #061c12, #0a2d1a); box-shadow: 0 0 18px #0d552d, inset 0 0 18px #0a3b20; }
+.number-board-75 { display: grid; gap: 5px; height: auto; padding: 14px 10px; border: 1px solid #1c713b; border-radius: 22px; background: linear-gradient(145deg, #061c12, #0a2d1a); box-shadow: 0 0 18px #0d552d, inset 0 0 18px #0a3b20; }
 .number-board-row { display: grid; grid-template-columns: 30px repeat(15, minmax(0, 1fr)); gap: 5px; align-items: center; }
 .number-board-label { color: #f2f7f2; font-size: 22px; font-weight: 700; text-shadow: 0 1px 2px #020a05; }
 .number-board-75 button { min-width: 0; aspect-ratio: 1.25; border: 0; border-radius: 7px; background: #173d26; box-shadow: inset 0 0 7px #0c2b19; color: #63816c; font-size: 13px; font-weight: 700; }

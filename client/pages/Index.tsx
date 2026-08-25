@@ -332,7 +332,18 @@ export default function Index() {
           <p>የአሁኑ ቁጥር</p>
           <div className="orb">{currentBall ?? "—"}</div>
         </section>
-        {gameType === "90" && (
+        {gameType === "75" ? (
+          <section className="number-board number-board-75" aria-label="75-ball number board">
+            {['B', 'I', 'N', 'G', 'O'].map((letter, rowIndex) => (
+              <div className="number-board-row" key={letter}>
+                <b className="number-board-label">{letter}</b>
+                {Array.from({ length: 15 }, (_, index) => rowIndex * 15 + index + 1).map((n) => (
+                  <button key={n} className={called.has(n) ? "active" : ""}>{n}</button>
+                ))}
+              </div>
+            ))}
+          </section>
+        ) : (
           <section className="number-board" aria-label="90-ball number board">
             {Array.from({ length: 90 }, (_, i) => i + 1).map((n) => (
               <button key={n} className={called.has(n) ? "active" : ""}>{n}</button>
