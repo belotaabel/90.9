@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
@@ -92,15 +92,23 @@ export default function Index() {
   const apiBase = "";
   const socketBase = "";
   const [user, setUser] = useState<User | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
-  const [selected, setSelected] = useState<number[]>(() => {
+  const [selected, setSelected] = useState<number[]>([]);
+  const selectionLoaded = useRef(false);
+
+  const selectionScope = user ? String(user.telegram_id) : "anonymous";
+  const selectionKey = `neon-${gameType}-selected-cards-${selectionScope}`;
+  const readSelected = (key: string) => {
     try {
-      const saved = JSON.parse(localStorage.getItem("neon-90-selected-cards") ?? "[]");
-      return Array.isArray(saved) ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2) : [];
+      const saved = JSON.parse(localStorage.getItem(key) ?? "[]");
+      return Array.isArray(saved)
+        ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2)
+        : [];
     } catch {
       return [];
     }
-  });
+  };
   const [called, setCalled] = useState<Set<number>>(new Set());
   const [currentBall, setCurrentBall] = useState<number | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
@@ -110,21 +118,15 @@ export default function Index() {
   const [notice, setNotice] = useState("ካርዶች እየተጫኑ ነው...");
   const [panel, setPanel] = useState<"profile" | "wallet" | null>(null);
   useEffect(() => {
-    const key = `neon-${gameType}-selected-cards`;
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? "[]");
-      setSelected(
-        Array.isArray(saved)
-          ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2)
-          : [],
-      );
-    } catch {
-      setSelected([]);
-    }
-  }, [gameType]);
+    if (!authLoaded) return;
+    selectionLoaded.current = false;
+    setSelected(readSelected(selectionKey));
+    selectionLoaded.current = true;
+  }, [authLoaded, selectionKey]);
   useEffect(() => {
-    localStorage.setItem(`neon-${gameType}-selected-cards`, JSON.stringify(selected));
-  }, [selected, gameType]);
+    if (!authLoaded || !selectionLoaded.current) return;
+    localStorage.setItem(selectionKey, JSON.stringify(selected));
+  }, [authLoaded, selected, selectionKey]);
   const initData =
     window.Telegram?.WebApp?.initData ||
     new URLSearchParams(window.location.hash.replace(/^#/, "")).get(
@@ -137,6 +139,7 @@ export default function Index() {
     window.Telegram?.WebApp?.ready?.();
     if (!initData) {
       setNotice("ጨዋታውን ለመጫወት Telegram ውስጥ ይክፈቱ።");
+      setAuthLoaded(true);
       return;
     }
     fetch(`${apiBase}/api/me`, { headers: { "x-telegram-init-data": initData } })
@@ -149,7 +152,8 @@ export default function Index() {
           );
         setUser(await r.json());
       })
-      .catch((e) => setNotice(e.message));
+      .catch((e) => setNotice(e.message))
+      .finally(() => setAuthLoaded(true));
   }, [initData, apiBase]);
   useEffect(() => {
     fetch(`${apiBase}/api/game?gameType=${gameType}`)
