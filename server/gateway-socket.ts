@@ -13,7 +13,14 @@ export function registerGatewaySockets(io: Server) {
       return;
     }
 
-    const upstream = connectToGame(target, { transports: ["polling", "websocket"], upgrade: false });
+    // Carry the selected mode through the second Socket.IO hop as well. The
+    // upstream is normally a mode-specific service, but this keeps mode
+    // selection explicit if the deployment topology changes.
+    const upstream = connectToGame(target, {
+      transports: ["polling", "websocket"],
+      upgrade: false,
+      query: { gameType: mode },
+    });
     upstream.on("game:state", (state) => socket.emit("game:state", state));
     upstream.on("game:error", (error) => socket.emit("game:error", error));
     upstream.on("connect_error", () => socket.emit("game:error", { message: "Game service unavailable" }));
