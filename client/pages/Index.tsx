@@ -370,7 +370,8 @@ export default function Index() {
               ))}
             </div>
             <div className="winner-modal" role="status">
-              <div className="winner-badge">BINGO!</div>
+              <div className="winner-crown" aria-hidden="true">♛</div>
+              <div className="winner-badge"><span>🎉</span> BINGO! <span>🎉</span></div>
               <h2>{winners.length > 1 ? "አሸናፊዎች ተገኝተዋል" : "አሸናፊ ተገኝቷል"}</h2>
               <div className="winner-prize">{((game?.prizeAmount ?? 0) / winners.length).toFixed(2)} ብር / እያናቸው</div>
               <p>የአሸናፊው ስም: <b>{winners.map((item) => item.displayName).join(", ")}</b></p>
