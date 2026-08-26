@@ -292,7 +292,7 @@ export default function Index() {
     );
   if (playing)
     return (
-      <main className="app-shell">
+      <main className="app-shell playing-shell">
         <header className="topbar">
           <button
             className="icon-button"
