@@ -255,7 +255,7 @@ export default function Index() {
       setSelected([]);
       setCountdown(20);
       setNotice("");
-    }, 5000);
+    }, 8000);
     return () => window.clearTimeout(resetTimer);
   }, [winner, playing]);
   const winningRows = winningLines(cardForId(winnerCardId ?? -1));
