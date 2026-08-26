@@ -330,7 +330,11 @@ export default function Index() {
         </section>
         <section className="draw">
           <p>የአሁኑ ቁጥር</p>
-          <div className="orb">{currentBall ?? "—"}</div>
+          <div className="current-ball-layout">
+            <strong className="ball-letter">{currentBall === null ? "—" : gameType === "75" ? (currentBall <= 15 ? "B" : currentBall <= 30 ? "I" : currentBall <= 45 ? "N" : currentBall <= 60 ? "G" : "O") : ""}</strong>
+            <div className="orb">{currentBall ?? "—"}</div>
+            <span className="called-count">{called.size}/{gameType === "75" ? 75 : 90}</span>
+          </div>
         </section>
         <section className="ball-history" aria-label="Called ball history">
           <h2>የተጠሩ ኳሶች</h2>

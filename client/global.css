@@ -45,6 +45,9 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 
 .draw { margin: 24px 0 18px; text-align: center; }
 .draw p { margin: 0 0 8px; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 17px; }
+.current-ball-layout { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: min(100%, 360px); margin: auto; }
+.ball-letter { justify-self: end; margin-right: 18px; color: #ffe55e; font-size: 34px; text-shadow: 0 0 12px #ffc928; }
+.called-count { justify-self: start; margin-left: 18px; color: #ffe55e; font-size: 16px; font-weight: 800; text-shadow: 0 0 9px #ffc928; }
 .orb { display: grid; width: 116px; height: 116px; margin: auto; place-items: center; border: 4px solid #5de8ff; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #76dfff, #4121bd 42%, #b100db 75%, #21106e); box-shadow: 0 0 10px #1ee6ff, 0 0 30px #6244ff, inset 0 0 22px #e253ff; font-size: 64px; font-weight: 800; }
 
 .number-board-columns { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 5px; margin: 12px 0 5px; color: #ffe55e; text-align: center; font-size: 13px; }
