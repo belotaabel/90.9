@@ -5,10 +5,11 @@ import * as express from "express";
 import { createServer as createHttpServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
 import { registerGameSockets } from "./socket";
+import { registerGatewaySockets } from "./gateway-socket";
 import { initializeDatabase } from "./db";
 
 const app = createServer();
-const port = Number(process.env.PORT ?? (serviceMode === "75" ? 3001 : 3000));
+const port = Number(process.env.PORT ?? (serviceMode === "75" ? 3001 : serviceMode === "gateway" ? 8080 : 3000));
 
 // In production, serve the built SPA files
 const __dirname = import.meta.dirname;
@@ -29,13 +30,14 @@ app.use((req, res) => {
 
 const httpServer = createHttpServer(app);
 const io = new SocketServer(httpServer, { cors: { origin: true, credentials: true } });
-registerGameSockets(io, serviceMode);
+if (serviceMode === "gateway") registerGatewaySockets(io);
+else registerGameSockets(io, serviceMode);
 
 httpServer.listen(port, () => {
   void initializeDatabase().catch((error) => {
     console.error("Neon database initialization failed", error instanceof Error ? { message: error.message, stack: error.stack, code: (error as { code?: string }).code } : error);
   });
-  if (process.env.TELEGRAM_WEBHOOK_ENABLED !== "false" && serviceMode === "90") void registerTelegramWebhook().catch((error) => {
+  if (process.env.TELEGRAM_WEBHOOK_ENABLED !== "false" && (serviceMode === "90" || serviceMode === "gateway")) void registerTelegramWebhook().catch((error) => {
     console.error("Telegram webhook registration failed", error instanceof Error ? { message: error.message, stack: error.stack } : error);
   });
   const runningOnRender = process.env.RENDER === "true" || Boolean(process.env.RENDER_EXTERNAL_URL);

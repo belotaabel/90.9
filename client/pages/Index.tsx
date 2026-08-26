@@ -87,8 +87,10 @@ function CardView({
 export default function Index() {
   const [screen, setScreen] = useState<"landing" | "selection">("landing");
   const [gameType, setGameType] = useState<GameType>("90");
-  const apiBase = ((gameType === "75" ? import.meta.env.VITE_API_URL_75 : import.meta.env.VITE_API_URL_90) || "").replace(/\/$/, "");
-  const socketBase = ((gameType === "75" ? import.meta.env.VITE_SOCKET_URL_75 : import.meta.env.VITE_SOCKET_URL_90) || "").replace(/\/$/, "");
+  // The gateway selects the configured game service from the gameType query parameter.
+  // Empty bases preserve the local same-origin development fallback.
+  const apiBase = "";
+  const socketBase = "";
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>(() => {
@@ -149,7 +151,7 @@ export default function Index() {
       .catch((e) => setNotice(e.message));
   }, [initData, apiBase]);
   useEffect(() => {
-    fetch(`${apiBase}/api/game/cards`)
+    fetch(`${apiBase}/api/game/cards?gameType=${gameType}`)
       .then(async (r) => {
         if (!r.ok) throw new Error("Card catalog unavailable");
         setCards(await r.json());
@@ -179,7 +181,11 @@ export default function Index() {
   }, [countdown, selected.length]);
   useEffect(() => {
     if (!playing || !user) return;
-    const socket = io(socketBase || undefined, { transports: ["polling", "websocket"], upgrade: false });
+    const socket = io(socketBase || undefined, {
+      transports: ["polling", "websocket"],
+      upgrade: false,
+      query: { gameType },
+    });
     socket.on("connect", () => {
       setNotice("");
       socket.emit("game:join", { playerId: user.id, cardNumbers: selected, gameType });
