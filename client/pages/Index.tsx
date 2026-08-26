@@ -171,7 +171,7 @@ export default function Index() {
         setCountdown(null);
       } else {
         setCountdown(20);
-        setNotice("ቢያንስ አንድ ካርድ ይምረጡ።");
+        setNotice("");
       }
     }
   }, [countdown, selected.length]);
@@ -213,7 +213,7 @@ export default function Index() {
     );
   const start = () => {
     if (!user) return setNotice("Telegram authentication is required.");
-    if (!selected.length) return setNotice("ቢያንስ አንድ ካርድ ይምረጡ።");
+    if (!selected.length) return setNotice("");
     setCountdown(5);
     setNotice("ጨዋታው ይጀምራል...");
   };
