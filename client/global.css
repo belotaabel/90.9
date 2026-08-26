@@ -103,7 +103,9 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .winner-modal small { display: block; margin-top: 14px; color: #b8c9e4; font-family: "Noto Sans Ethiopic", sans-serif; }
 .winner-card-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
 .winner-card-preview { display: grid; place-items: center; margin-top: 16px; }
-.winner-card-item { width: min(100%, 250px); min-width: 0; padding: 8px; border: 1px solid #397dff; border-radius: 14px; background: #0b1642aa; box-shadow: inset 0 0 12px #152d75; }
+.winner-card-item { width: min(100%, 330px); min-width: 0; padding: 8px; border: 1px solid #397dff; border-radius: 14px; background: #0b1642aa; box-shadow: inset 0 0 12px #152d75; }
+.winner-card-item .ticket-card { width: 100%; margin: 0; border-color: #4fc9ff; box-shadow: 0 0 16px #176fff, inset 0 0 18px #152d75; }
+.winner-card-item .ticket-grid span { min-height: 34px; font-size: 14px; }
 .winner-card-item > small { margin: 0 0 6px; color: #72e9ff; font-weight: 800; }
 .winner-card-item > span { display: block; margin-top: 7px; color: #ffe55e; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 11px; font-weight: 700; }
 @keyframes confetti-fall { to { transform: translateY(110svh) rotate(540deg); } }
