@@ -114,6 +114,7 @@ export default function Index() {
   const [game, setGame] = useState<GameState | null>(null);
   const [countdown, setCountdown] = useState<number | null>(20);
   const [selectionGameStatus, setSelectionGameStatus] = useState<string | null>(null);
+  const [occupiedCardIds, setOccupiedCardIds] = useState<Set<number>>(new Set());
   const [playing, setPlaying] = useState(false);
   const [notice, setNotice] = useState("ካርዶች እየተጫኑ ነው...");
   const [panel, setPanel] = useState<"profile" | "wallet" | null>(null);
@@ -156,18 +157,16 @@ export default function Index() {
       .finally(() => setAuthLoaded(true));
   }, [initData, apiBase]);
   useEffect(() => {
-    fetch(`${apiBase}/api/game?gameType=${gameType}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((activeGame) => setSelectionGameStatus(activeGame?.status ?? null))
-      .catch(() => setSelectionGameStatus(null));
-    const statusTimer = window.setInterval(() => {
-      fetch(`${apiBase}/api/game?gameType=${gameType}`)
-        .then((r) => r.ok ? r.json() : null)
-        .then((activeGame) => { if (activeGame) setSelectionGameStatus(activeGame.status ?? null); })
-        .catch(() => undefined);
-    }, 2000);
+    const url = `${apiBase}/api/game?gameType=${gameType}${user ? `&userId=${user.id}` : ""}`;
+    const applyGameInfo = (activeGame: { status?: string; occupiedCardNumbers?: unknown } | null) => {
+      if (!activeGame) return;
+      setSelectionGameStatus(activeGame.status ?? null);
+      setOccupiedCardIds(new Set(Array.isArray(activeGame.occupiedCardNumbers) ? activeGame.occupiedCardNumbers.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400) : []));
+    };
+    fetch(url).then((r) => r.ok ? r.json() : null).then(applyGameInfo).catch(() => { setSelectionGameStatus(null); setOccupiedCardIds(new Set()); });
+    const statusTimer = window.setInterval(() => fetch(url).then((r) => r.ok ? r.json() : null).then(applyGameInfo).catch(() => undefined), 2000);
     return () => window.clearInterval(statusTimer);
-  }, [gameType, apiBase]);
+  }, [gameType, apiBase, user]);
   useEffect(() => {
     fetch(`${apiBase}/api/game/cards?gameType=${gameType}`)
       .then(async (r) => {
@@ -232,7 +231,7 @@ export default function Index() {
   };
   const selectionLocked = selectionGameStatus === "playing";
   const toggle = (id: number) => {
-    if (selectionLocked) return;
+    if (selectionLocked || occupiedCardIds.has(id)) return;
     setSelected((old) =>
       old.includes(id)
         ? old.filter((x) => x !== id)
@@ -475,10 +474,11 @@ export default function Index() {
         {cardIdentifiers.map((id) => (
           <button
             key={id}
-            className={selected.includes(id) ? "active" : ""}
+            className={`${selected.includes(id) ? "active" : ""} ${occupiedCardIds.has(id) ? "occupied" : ""}`}
             onClick={() => toggle(id)}
-            disabled={selectionLocked}
+            disabled={selectionLocked || occupiedCardIds.has(id)}
             aria-pressed={selected.includes(id)}
+            aria-label={occupiedCardIds.has(id) ? `Card ${id}, occupied` : `Card ${id}`}
           >
             {id}
           </button>

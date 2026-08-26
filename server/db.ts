@@ -322,7 +322,7 @@ export async function getCardCatalog(gameType: GameType = "90") {
   return result.rows;
 }
 
-export async function getActiveGame(gameType: GameType = "90") {
+export async function getActiveGame(gameType: GameType = "90", userId?: number) {
   if (!db) throw new Error("DATABASE_URL is not configured");
   const client = await db.connect();
   try {
@@ -344,8 +344,18 @@ export async function getActiveGame(gameType: GameType = "90") {
           "INSERT INTO games (status, game_type) VALUES ('selecting', $1) RETURNING id, status, prize_pool, called_numbers, current_number, game_type",
           [gameType],
         )).rows[0];
+    const occupiedResult = userId && game.status === "selecting"
+      ? await client.query(
+          "SELECT card_number FROM game_cards WHERE game_id = $1 AND user_id <> $2",
+          [game.id, userId],
+        )
+      : { rows: [] as Array<{ card_number: number }> };
+    const occupiedCardNumbers = occupiedResult.rows.map((row) => {
+      const cardNumber = Number(row.card_number);
+      return gameType === "75" ? cardNumber - 400 : cardNumber;
+    });
     await client.query("COMMIT");
-    return game;
+    return { ...game, occupiedCardNumbers };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
