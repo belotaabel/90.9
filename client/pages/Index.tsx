@@ -200,9 +200,10 @@ export default function Index() {
     () => Array.from({ length: 400 }, (_, index) => index + 1),
     [],
   );
-  const cardForId = (id: number) =>
-    cards.find((card) => card.card_number === id) ??
-    (gameType === "75" ? cards.find((card) => card.card_number === id + 400) : undefined);
+  const cardForId = (id: number) => {
+    const visibleId = gameType === "75" && id > 400 ? id - 400 : id;
+    return cards.find((card) => card.card_number === visibleId);
+  };
   const toggle = (id: number) =>
     setSelected((old) =>
       old.includes(id)
