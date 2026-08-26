@@ -105,6 +105,7 @@ export default function Index() {
   const [currentBall, setCurrentBall] = useState<number | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [countdown, setCountdown] = useState<number | null>(20);
+  const [selectionGameStatus, setSelectionGameStatus] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [notice, setNotice] = useState("ካርዶች እየተጫኑ ነው...");
   const [panel, setPanel] = useState<"profile" | "wallet" | null>(null);
@@ -150,6 +151,19 @@ export default function Index() {
       })
       .catch((e) => setNotice(e.message));
   }, [initData, apiBase]);
+  useEffect(() => {
+    fetch(`${apiBase}/api/game?gameType=${gameType}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((activeGame) => setSelectionGameStatus(activeGame?.status ?? null))
+      .catch(() => setSelectionGameStatus(null));
+    const statusTimer = window.setInterval(() => {
+      fetch(`${apiBase}/api/game?gameType=${gameType}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((activeGame) => { if (activeGame) setSelectionGameStatus(activeGame.status ?? null); })
+        .catch(() => undefined);
+    }, 2000);
+    return () => window.clearInterval(statusTimer);
+  }, [gameType, apiBase]);
   useEffect(() => {
     fetch(`${apiBase}/api/game/cards?gameType=${gameType}`)
       .then(async (r) => {
@@ -212,7 +226,9 @@ export default function Index() {
     const visibleId = gameType === "75" && id > 400 ? id - 400 : id;
     return cards.find((card) => card.card_number === visibleId);
   };
-  const toggle = (id: number) =>
+  const selectionLocked = selectionGameStatus === "playing";
+  const toggle = (id: number) => {
+    if (selectionLocked) return;
     setSelected((old) =>
       old.includes(id)
         ? old.filter((x) => x !== id)
@@ -220,7 +236,9 @@ export default function Index() {
           ? [...old, id]
           : old,
     );
+  };
   const start = () => {
+    if (selectionLocked) return setNotice("ጨዋታ እየተካሄደ ነው");
     if (!user) return setNotice("Telegram authentication is required.");
     if (!selected.length) return setNotice("");
     setCountdown(5);
@@ -445,8 +463,8 @@ export default function Index() {
         </div>
       </section>
       <div className="selection-countdown" aria-live="polite">
-        <span>ጨዋታው ይጀምራል</span>
-        <b>{countdown ?? 20}</b>
+        <span>{selectionLocked ? "ጨዋታ እየተካሄደ ነው" : "ጨዋታው ይጀምራል"}</span>
+        <b>{selectionLocked ? "00" : countdown ?? 20}</b>
         <small>ሰከንድ</small>
       </div>
       <section className="number-grid" aria-label="Card identifiers">
@@ -455,6 +473,7 @@ export default function Index() {
             key={id}
             className={selected.includes(id) ? "active" : ""}
             onClick={() => toggle(id)}
+            disabled={selectionLocked}
             aria-pressed={selected.includes(id)}
           >
             {id}
@@ -493,7 +512,7 @@ export default function Index() {
       )}
       <button
         className="start-button"
-        disabled={!selected.length || countdown !== null}
+        disabled={selectionLocked || !selected.length || countdown !== null}
         onClick={start}
       >
         {countdown !== null ? `ይጀምራል ${countdown}` : "ጨዋታ ጀምር"}

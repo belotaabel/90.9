@@ -359,6 +359,9 @@ export async function persistSelectedCards(gameId: string, userId: number, cardN
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    const gameStatus = await client.query("SELECT status FROM games WHERE id = $1 AND game_type = $2 FOR UPDATE", [gameId, gameType]);
+    if (!gameStatus.rowCount) throw new Error("Game not found");
+    if (gameStatus.rows[0].status !== "selecting") throw new Error("ጨዋታ እየተካሄደ ነው");
     const storedCards = gameType === "75" ? cardNumbers.map((n) => n + 400) : cardNumbers;
     const validCards = await client.query(
       "SELECT card_number FROM bingo_cards WHERE game_type = $1 AND card_number = ANY($2::int[])",
