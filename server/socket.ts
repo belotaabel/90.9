@@ -10,6 +10,7 @@ type GameState = {
   playerCount: number;
   prizeAmount: number;
   winners: BingoWinner[];
+  selectionEndsAt: string | null;
 };
 
 function toGameState(row: any): GameState {
@@ -20,6 +21,7 @@ function toGameState(row: any): GameState {
     status: row.status === "finished" ? "complete" : row.status === "playing" ? "active" : "waiting",
     playerCount: Number(row.player_count ?? 0),
     prizeAmount: Number(row.prize_pool ?? 0),
+    selectionEndsAt: row.selecting_started_at ? new Date(new Date(row.selecting_started_at).getTime() + 50000).toISOString() : null,
     winners: (row.winners ?? []).map((winner: BingoWinner) => ({
       ...winner,
       userId: Number(winner.userId),

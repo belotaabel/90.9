@@ -28,6 +28,7 @@ type GameState = {
   prizeAmount: number;
   status: string;
   winners: BingoWinner[];
+  selectionEndsAt: string | null;
 };
 declare global {
   interface Window {
@@ -112,7 +113,8 @@ export default function Index() {
   const [called, setCalled] = useState<Set<number>>(new Set());
   const [currentBall, setCurrentBall] = useState<number | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(50);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [selectionEndsAt, setSelectionEndsAt] = useState<string | null>(null);
   const [selectionGameStatus, setSelectionGameStatus] = useState<string | null>(null);
   const [occupiedCardIds, setOccupiedCardIds] = useState<Set<number>>(new Set());
   const [playing, setPlaying] = useState(false);
@@ -161,6 +163,8 @@ export default function Index() {
     const applyGameInfo = (activeGame: { status?: string; occupiedCardNumbers?: unknown } | null) => {
       if (!activeGame) return;
       setSelectionGameStatus(activeGame.status ?? null);
+      setSelectionEndsAt(typeof (activeGame as any).selecting_started_at === "string" ? new Date(new Date((activeGame as any).selecting_started_at).getTime() + 50000).toISOString() : null);
+      if (activeGame.status === "playing") setPlaying(true);
       setOccupiedCardIds(new Set(Array.isArray(activeGame.occupiedCardNumbers) ? activeGame.occupiedCardNumbers.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400) : []));
     };
     fetch(url).then((r) => r.ok ? r.json() : null).then(applyGameInfo).catch(() => { setSelectionGameStatus(null); setOccupiedCardIds(new Set()); });
@@ -177,25 +181,12 @@ export default function Index() {
       .catch((e) => setNotice(e.message));
   }, [gameType, apiBase]);
   useEffect(() => {
-    if (playing || countdown === null || countdown <= 0) return;
-    const timer = window.setTimeout(() => setCountdown(countdown - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [countdown, playing]);
-  useEffect(() => {
-    if (countdown === 0) {
-      if (screen !== "selection") {
-        setCountdown(50);
-        return;
-      }
-      if (selected.length) {
-        setPlaying(true);
-        setCountdown(null);
-      } else {
-        setCountdown(50);
-        setNotice("");
-      }
-    }
-  }, [countdown, selected.length]);
+    if (playing || !selectionEndsAt) return;
+    const update = () => setCountdown(Math.max(0, Math.ceil((Date.parse(selectionEndsAt) - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [selectionEndsAt, playing]);
   useEffect(() => {
     if (!playing || !user) return;
     const socket = io(socketBase || undefined, {
@@ -244,7 +235,6 @@ export default function Index() {
     if (selectionLocked) return setNotice("ጨዋታ እየተካሄደ ነው");
     if (!user) return setNotice("Telegram authentication is required.");
     if (!selected.length) return setNotice("");
-    setCountdown(5);
     setNotice("ጨዋታው ይጀምራል...");
   };
   const winningLines = (card: Card | undefined) => {
