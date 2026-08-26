@@ -56,9 +56,9 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .ball-history::after { display: none; }
 .ball-history h2 { position: relative; z-index: 1; margin: 0 0 18px; color: #7eeeff; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 15px; text-shadow: 0 0 9px #168cff; }
 .ball-history-list { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px; min-height: 22px; max-height: 80px; overflow: hidden; align-items: center; }
-.ball-history-list .ball-cell { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #277de0; border-radius: 50%; background: radial-gradient(circle at 32% 25%, #b9f8ff 0 8%, #2878b7 42%, #11164e 88%); color: #d7f9ff; font-size: 11px; font-weight: 700; animation: ball-roll .75s cubic-bezier(.18,.84,.28,1.15) both; box-shadow: 0 0 3px #178dff, inset -2px -2px 3px #06112d; transform-origin: center bottom; }
+.ball-history-list .ball-cell { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #277de0; border-radius: 50%; background: radial-gradient(circle at 32% 25%, #b9f8ff 0 8%, #2878b7 42%, #11164e 88%); color: #d7f9ff; font-size: 11px; font-weight: 700; animation: none; box-shadow: 0 0 3px #178dff, inset -2px -2px 3px #06112d; transform-origin: center bottom; }
 .ball-history-list .ball-cell:nth-last-child(n+16) { opacity: .48; filter: saturate(.65); }
-.ball-history-list span.latest { animation: ball-roll .75s cubic-bezier(.18,.84,.28,1.15) both; }
+.ball-history-list span.latest { animation: none; }
 @keyframes ball-roll { 0% { opacity: 0; transform: translate(-34px, -12px) scale(.7); } 65% { opacity: 1; transform: translate(4px, 2px) scale(1.04); } 100% { opacity: 1; transform: translate(0) scale(1); } }
 @keyframes ball-pulse { 0%, 100% { box-shadow: 2px 4px 5px #020b05, 0 0 0 #dfff35; } 50% { box-shadow: 2px 4px 5px #020b05, 0 0 14px #e7ed22; transform: translateY(-2px) scale(1.12); } }
 @keyframes machine-light { 0%, 100% { opacity: .45; transform: translateX(-50%) scale(.8); } 50% { opacity: 1; transform: translateX(-50%) scale(1.2); } }
