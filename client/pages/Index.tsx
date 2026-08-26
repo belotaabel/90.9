@@ -378,9 +378,8 @@ export default function Index() {
               <p>የአሸናፊ ካርዶች: <b>{winnerCardIds.map((id) => gameType === "75" ? (id > 400 ? id - 400 : id) : id).join(", ")}</b></p>
               <p>የተዘጉ መስመሮች: <b>{winners.map((item) => item.rows.map((row) => row <= 5 ? `መስመር ${row}` : row === 13 ? "አራት ማዕዘኖች" : row === 11 ? "ዲያጎናል 1" : row === 12 ? "ዲያጎናል 2" : `አምድ ${row - 5}`).join(", ")).join("; ")}</b></p>
               <div className="winner-card-preview">
-                {winnerCardIds.slice(0, 3).map((id, index) => { const card = cardForId(id); return card && <div className="winner-card-item" key={id}><small>ካርድ #{gameType === "75" && id > 400 ? id - 400 : id}</small><CardView card={card} selected called={called} onClick={() => undefined} gameType={gameType} /><span>የዘጋው: {winners[index]?.rows.map((row) => row <= 5 ? `መስመር ${row}` : row === 13 ? "አራት ማዕዘኖች" : row === 11 || row === 12 ? "ዲያጎናል" : `አምድ ${row - 5}`).join(", ")}</span></div>; })}
+                {winnerCardIds.slice(0, 1).map((id, index) => { const card = cardForId(id); return card && <div className="winner-card-item" key={id}><small>ካርድ #{gameType === "75" && id > 400 ? id - 400 : id}</small><CardView card={card} selected called={called} onClick={() => undefined} gameType={gameType} /><span>የዘጋው: {winners[index]?.rows.map((row) => row <= 5 ? `መስመር ${row}` : row === 13 ? "አራት ማዕዘኖች" : row === 11 || row === 12 ? "ዲያጎናል" : `አምድ ${row - 5}`).join(", ")}</span></div>; })}
               </div>
-              {winnerCardIds.length > 3 && <small>የመጀመሪያዎቹ 3 የአሸናፊ ካርዶች ታይተዋል።</small>}
               <small>አዲስ ጨዋታ በቅርቡ ይጀምራል...</small>
             </div>
           </>
