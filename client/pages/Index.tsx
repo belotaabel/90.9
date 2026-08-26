@@ -337,7 +337,7 @@ export default function Index() {
           </div>
         </section>
         <section className="ball-history" aria-label="Called ball history">
-          <h2>የተጠሩ ኳሶች</h2>
+          <h2>የኳስ ማሽን</h2>
           <div className="ball-history-list">
             {(game?.calledNumbers ?? []).slice(-45).map((number, index) => (
               <span key={`${number}-${index}`} className={`ball-cell ${number === currentBall ? "latest" : ""}`} style={{ animationDelay: `${index * 35}ms` }}>{number}</span>
