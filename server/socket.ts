@@ -29,7 +29,7 @@ function toGameState(row: any): GameState {
   };
 }
 
-export function registerGameSockets(io: Server) {
+export function registerGameSockets(io: Server, serviceMode: GameType = "90") {
   const activeGames = new Map<GameType, string>();
   const tickInProgress = new Set<GameType>();
 
@@ -63,12 +63,11 @@ export function registerGameSockets(io: Server) {
   };
 
   const timer = setInterval(() => {
-    void advanceMode("90");
-    void advanceMode("75");
+    void advanceMode(serviceMode);
   }, 2000);
 
   io.on("connection", (socket) => {
-    socket.on("game:join", async ({ playerId, cardNumbers, gameType }: { playerId?: string | number; cardNumbers?: number[]; gameType?: GameType }) => {
+    socket.on("game:join", async ({ playerId, cardNumbers }: { playerId?: string | number; cardNumbers?: number[] }) => {
       try {
         const parsedPlayerId = Number(playerId);
         if (!Number.isSafeInteger(parsedPlayerId) || parsedPlayerId <= 0) {
@@ -82,7 +81,7 @@ export function registerGameSockets(io: Server) {
           socket.emit("game:error", { message: "Select at least one bingo card before joining." });
           return;
         }
-        const mode: GameType = gameType === "75" ? "75" : "90";
+        const mode = serviceMode;
         const game = await getActiveGame(mode);
         const gameId = String(game.id);
         activeGames.set(mode, gameId);

@@ -87,6 +87,8 @@ function CardView({
 export default function Index() {
   const [screen, setScreen] = useState<"landing" | "selection">("landing");
   const [gameType, setGameType] = useState<GameType>("90");
+  const apiBase = ((gameType === "75" ? import.meta.env.VITE_API_URL_75 : import.meta.env.VITE_API_URL_90) || "").replace(/\/$/, "");
+  const socketBase = ((gameType === "75" ? import.meta.env.VITE_SOCKET_URL_75 : import.meta.env.VITE_SOCKET_URL_90) || "").replace(/\/$/, "");
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>(() => {
@@ -134,7 +136,7 @@ export default function Index() {
       setNotice("ጨዋታውን ለመጫወት Telegram ውስጥ ይክፈቱ።");
       return;
     }
-    fetch("/api/me", { headers: { "x-telegram-init-data": initData } })
+    fetch(`${apiBase}/api/me`, { headers: { "x-telegram-init-data": initData } })
       .then(async (r) => {
         if (!r.ok)
           throw new Error(
@@ -145,16 +147,16 @@ export default function Index() {
         setUser(await r.json());
       })
       .catch((e) => setNotice(e.message));
-  }, [initData]);
+  }, [initData, apiBase]);
   useEffect(() => {
-    fetch(`/api/game/cards?mode=${gameType}`)
+    fetch(`${apiBase}/api/game/cards`)
       .then(async (r) => {
         if (!r.ok) throw new Error("Card catalog unavailable");
         setCards(await r.json());
         setNotice("");
       })
       .catch((e) => setNotice(e.message));
-  }, [gameType]);
+  }, [gameType, apiBase]);
   useEffect(() => {
     if (playing || countdown === null || countdown <= 0) return;
     const timer = window.setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -177,7 +179,7 @@ export default function Index() {
   }, [countdown, selected.length]);
   useEffect(() => {
     if (!playing || !user) return;
-    const socket = io({ transports: ["polling", "websocket"], upgrade: false });
+    const socket = io(socketBase || undefined, { transports: ["polling", "websocket"], upgrade: false });
     socket.on("connect", () => {
       setNotice("");
       socket.emit("game:join", { playerId: user.id, cardNumbers: selected, gameType });
@@ -195,7 +197,7 @@ export default function Index() {
       socket.emit("game:leave");
       socket.disconnect();
     };
-  }, [playing, user, selected, gameType]);
+  }, [playing, user, selected, gameType, socketBase]);
   const cardIdentifiers = useMemo(
     () => Array.from({ length: 400 }, (_, index) => index + 1),
     [],

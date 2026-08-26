@@ -1,10 +1,10 @@
 import type { RequestHandler } from "express";
 import { getActiveGame, getCardCatalog } from "../db";
+import { serviceMode } from "../index";
 
-export const handleCardCatalog: RequestHandler = async (req, res) => {
+export const handleCardCatalog: RequestHandler = async (_req, res) => {
   try {
-    const mode = req.query.mode === "75" ? "75" : "90";
-    const cards = await getCardCatalog(mode);
+    const cards = await getCardCatalog(serviceMode);
     return res.json(cards);
   } catch (error) {
     console.error("Unable to load bingo card catalog", error);
@@ -14,7 +14,7 @@ export const handleCardCatalog: RequestHandler = async (req, res) => {
 
 export const handleGameInfo: RequestHandler = async (_req, res) => {
   try {
-    return res.json(await getActiveGame());
+    return res.json(await getActiveGame(serviceMode));
   } catch (error) {
     console.error("Unable to load active bingo game", error);
     return res.status(503).json({ error: "Game data is unavailable." });

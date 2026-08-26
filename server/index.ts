@@ -7,6 +7,9 @@ import { handleTelegramWebhook } from "./routes/telegram";
 import { handleMe, handleProfilePhoto } from "./routes/me";
 import { handleCardCatalog, handleGameInfo } from "./routes/game";
 
+export type ServiceMode = "90" | "75";
+export const serviceMode: ServiceMode = process.env.SERVICE_MODE === "75" ? "75" : "90";
+
 export function createServer() {
   const app = express();
 
@@ -25,6 +28,7 @@ export function createServer() {
   app.post("/api/telegram/webhook", handleTelegramWebhook);
   app.get("/api/me", handleMe);
   app.get("/api/profile-photo/:telegramId", handleProfilePhoto);
+  // Each deployed game service exposes the same API contract, but only for its configured mode.
   app.get("/api/game/cards", handleCardCatalog);
   app.get("/api/game", handleGameInfo);
 
