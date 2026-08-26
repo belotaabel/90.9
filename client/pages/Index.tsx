@@ -112,7 +112,7 @@ export default function Index() {
   const [called, setCalled] = useState<Set<number>>(new Set());
   const [currentBall, setCurrentBall] = useState<number | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(20);
+  const [countdown, setCountdown] = useState<number | null>(50);
   const [selectionGameStatus, setSelectionGameStatus] = useState<string | null>(null);
   const [occupiedCardIds, setOccupiedCardIds] = useState<Set<number>>(new Set());
   const [playing, setPlaying] = useState(false);
@@ -184,14 +184,14 @@ export default function Index() {
   useEffect(() => {
     if (countdown === 0) {
       if (screen !== "selection") {
-        setCountdown(20);
+        setCountdown(50);
         return;
       }
       if (selected.length) {
         setPlaying(true);
         setCountdown(null);
       } else {
-        setCountdown(20);
+        setCountdown(50);
         setNotice("");
       }
     }
@@ -282,7 +282,7 @@ export default function Index() {
       setCalled(new Set());
       setCurrentBall(null);
       setSelected([]);
-      setCountdown(20);
+      setCountdown(50);
       setNotice("");
     }, 8000);
     return () => window.clearTimeout(resetTimer);
@@ -326,7 +326,7 @@ export default function Index() {
         <header className="topbar">
           <button
             className="icon-button"
-            onClick={() => { setPlaying(false); setCountdown(20); }}
+            onClick={() => { setPlaying(false); setCountdown(50); }}
             aria-label="Back"
           >
             <ArrowLeft />
@@ -467,7 +467,7 @@ export default function Index() {
       </section>
       <div className="selection-countdown" aria-live="polite">
         <span>{selectionLocked ? "ጨዋታ እየተካሄደ ነው" : "ጨዋታው ይጀምራል"}</span>
-        <b>{selectionLocked ? "00" : countdown ?? 20}</b>
+        <b>{selectionLocked ? "00" : countdown ?? 50}</b>
         <small>ሰከንድ</small>
       </div>
       <section className="number-grid" aria-label="Card identifiers">

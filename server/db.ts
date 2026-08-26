@@ -429,7 +429,7 @@ export async function advanceSelectingGame(gameType?: GameType) {
      WHERE g.status = 'selecting'
        AND ($1::text IS NULL OR g.game_type = $1)
      GROUP BY g.id, g.created_at
-     HAVING NOW() - g.created_at >= INTERVAL '2 seconds'
+     HAVING NOW() - g.created_at >= INTERVAL '50 seconds'
      ORDER BY g.created_at ASC
      LIMIT 1`,
     [gameType ?? null],
