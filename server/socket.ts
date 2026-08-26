@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { advanceSelectingGame, callNextNumber, claimGameWinners, getActiveGame, persistSelectedCards, readGameState, type GameType } from "./db";
+import type { BingoWinner } from "@shared/api";
 
 type GameState = {
   gameId: string;
@@ -8,6 +9,8 @@ type GameState = {
   status: "waiting" | "active" | "complete";
   playerCount: number;
   prizeAmount: number;
+  winners: BingoWinner[];
+  selectionEndsAt: string | null;
 };
 
 function toGameState(row: any): GameState {
@@ -18,18 +21,30 @@ function toGameState(row: any): GameState {
     status: row.status === "finished" ? "complete" : row.status === "playing" ? "active" : "waiting",
     playerCount: Number(row.player_count ?? 0),
     prizeAmount: Number(row.prize_pool ?? 0),
+    selectionEndsAt: row.selecting_started_at ? new Date(new Date(row.selecting_started_at).getTime() + 50000).toISOString() : null,
+    winners: (row.winners ?? []).map((winner: BingoWinner) => ({
+      ...winner,
+      userId: Number(winner.userId),
+      cardNumber: Number(winner.cardNumber),
+      prizeAmount: Number(winner.prizeAmount),
+    })),
   };
 }
 
-export function registerGameSockets(io: Server) {
+export function registerGameSockets(io: Server, serviceMode: GameType = "90") {
   const activeGames = new Map<GameType, string>();
   const tickInProgress = new Set<GameType>();
+
+  // Keep the transport room scoped to both mode and database game. This makes
+  // the shared-round boundary explicit and prevents a relay/service from ever
+  // mixing 90-ball and 75-ball subscribers.
+  const roomFor = (gameType: GameType, gameId: string) => `game:${gameType}:${gameId}`;
 
   const broadcastState = async (gameType: GameType) => {
     const gameId = activeGames.get(gameType);
     if (!gameId) return;
     const row = await readGameState(gameId);
-    if (row) io.to(gameId).emit("game:state", toGameState(row));
+    if (row) io.to(roomFor(gameType, gameId)).emit("game:state", toGameState(row));
   };
 
   const advanceMode = async (gameType: GameType) => {
@@ -55,12 +70,11 @@ export function registerGameSockets(io: Server) {
   };
 
   const timer = setInterval(() => {
-    void advanceMode("90");
-    void advanceMode("75");
+    void advanceMode(serviceMode);
   }, 2000);
 
   io.on("connection", (socket) => {
-    socket.on("game:join", async ({ playerId, cardNumbers, gameType }: { playerId?: string | number; cardNumbers?: number[]; gameType?: GameType }) => {
+    socket.on("game:join", async ({ playerId, cardNumbers }: { playerId?: string | number; cardNumbers?: number[] }) => {
       try {
         const parsedPlayerId = Number(playerId);
         if (!Number.isSafeInteger(parsedPlayerId) || parsedPlayerId <= 0) {
@@ -74,12 +88,16 @@ export function registerGameSockets(io: Server) {
           socket.emit("game:error", { message: "Select at least one bingo card before joining." });
           return;
         }
-        const mode: GameType = gameType === "75" ? "75" : "90";
-        const game = await getActiveGame(mode);
+        const mode = serviceMode;
+        // Lookup and persistence are transactional in the database. Passing the
+        // user here also keeps the occupied-card view tied to this same shared
+        // round before cards are locked/purchased.
+        const game = await getActiveGame(mode, parsedPlayerId);
         const gameId = String(game.id);
         activeGames.set(mode, gameId);
         await persistSelectedCards(gameId, parsedPlayerId, cards, mode);
-        await socket.join(gameId);
+        const room = roomFor(mode, gameId);
+        await socket.join(room);
         socket.data.gameId = gameId;
         socket.data.gameType = mode;
         socket.data.playerId = parsedPlayerId;
@@ -94,7 +112,8 @@ export function registerGameSockets(io: Server) {
 
     const leaveGame = () => {
       const gameId = socket.data.gameId as string | undefined;
-      if (gameId) void socket.leave(gameId);
+      const gameType = socket.data.gameType as GameType | undefined;
+      if (gameId && gameType) void socket.leave(roomFor(gameType, gameId));
       socket.data.gameId = undefined;
       socket.data.gameType = undefined;
     };

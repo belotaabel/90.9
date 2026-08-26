@@ -27,11 +27,15 @@ function contactRequestMenu() {
 }
 
 async function sendTelegramMessage(token: string, chatId: number, payload: Record<string, unknown>) {
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, ...payload }),
   });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Telegram sendMessage failed (${response.status}): ${details}`);
+  }
 }
 
 export const handleTelegramWebhook: RequestHandler = async (req, res) => {
@@ -66,6 +70,12 @@ export const handleTelegramWebhook: RequestHandler = async (req, res) => {
   }
 
   if (text === "/start" || (typeof text === "string" && text.startsWith("/start "))) {
+    // Reply before touching the database. A database outage must not make Telegram
+    // wait for (and eventually retry) the /start update without a response.
+    await sendTelegramMessage(token, chatId, {
+      text: "እንኳን ወደ 90Bingo በደህና መጡ! ከታች ያለውን ምናሌ ይጠቀሙ።",
+      reply_markup: mainMenu(miniAppUrl),
+    });
     if (message.from?.id) {
       const name = [message.from.first_name, message.from.last_name].filter(Boolean).join(" ");
       try {
@@ -78,10 +88,6 @@ export const handleTelegramWebhook: RequestHandler = async (req, res) => {
         console.error("Telegram /start user registration failed", error);
       }
     }
-    await sendTelegramMessage(token, chatId, {
-      text: "እንኳን ወደ 90Bingo በደህና መጡ! ከታች ያለውን ምናሌ ይጠቀሙ።",
-      reply_markup: mainMenu(miniAppUrl),
-    });
   } else if (contact && contact.user_id === message.from?.id) {
     const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
     try {
@@ -206,16 +212,39 @@ export const handleTelegramWebhook: RequestHandler = async (req, res) => {
 export async function registerTelegramWebhook() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const appUrl = process.env.APP_URL ?? process.env.RENDER_EXTERNAL_URL;
-  if (!token || !appUrl) return;
+  if (!token || !appUrl) {
+    console.log("Telegram webhook registration skipped", {
+      missingBotToken: !token,
+      missingAppUrl: !appUrl,
+    });
+    return;
+  }
 
   const normalizedUrl = appUrl.replace(/\/$/, "");
-  const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url: `${normalizedUrl}/api/telegram/webhook` }),
-  });
+  const webhookUrl = `${normalizedUrl}/api/telegram/webhook`;
+  const webhookInfoResponse = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+  if (!webhookInfoResponse.ok) {
+    throw new Error(`Telegram getWebhookInfo failed (${webhookInfoResponse.status})`);
+  }
 
-  if (!response.ok) console.error("Telegram webhook registration failed", response.status);
+  const webhookInfo = await webhookInfoResponse.json() as {
+    ok?: boolean;
+    result?: { url?: string };
+  };
+  if (!webhookInfo.ok) throw new Error("Telegram getWebhookInfo returned an unsuccessful response");
+
+  if (webhookInfo.result?.url === webhookUrl) {
+    console.log("Telegram webhook already configured", { url: webhookUrl });
+  } else {
+    const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: webhookUrl }),
+    });
+
+    if (!response.ok) throw new Error(`Telegram webhook registration failed (${response.status})`);
+    console.log("Telegram webhook registered", { url: webhookUrl });
+  }
 
   const miniAppUrl = process.env.MINI_APP_URL ?? normalizedUrl;
   const menuResponse = await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {

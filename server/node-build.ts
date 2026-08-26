@@ -1,14 +1,15 @@
 import path from "node:path";
-import { createServer } from "./index";
+import { createServer, serviceMode } from "./index";
 import { registerTelegramWebhook } from "./routes/telegram";
 import * as express from "express";
 import { createServer as createHttpServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
 import { registerGameSockets } from "./socket";
+import { registerGatewaySockets } from "./gateway-socket";
 import { initializeDatabase } from "./db";
 
 const app = createServer();
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT ?? (serviceMode === "75" ? 3001 : serviceMode === "gateway" ? 8080 : 3000));
 
 // In production, serve the built SPA files
 const __dirname = import.meta.dirname;
@@ -29,18 +30,21 @@ app.use((req, res) => {
 
 const httpServer = createHttpServer(app);
 const io = new SocketServer(httpServer, { cors: { origin: true, credentials: true } });
-registerGameSockets(io);
+if (serviceMode === "gateway") registerGatewaySockets(io);
+else registerGameSockets(io, serviceMode);
 
 httpServer.listen(port, () => {
   void initializeDatabase().catch((error) => {
     console.error("Neon database initialization failed", error instanceof Error ? { message: error.message, stack: error.stack, code: (error as { code?: string }).code } : error);
   });
-  void registerTelegramWebhook().catch((error) => {
+  if (process.env.TELEGRAM_WEBHOOK_ENABLED !== "false" && (serviceMode === "90" || serviceMode === "gateway")) void registerTelegramWebhook().catch((error) => {
     console.error("Telegram webhook registration failed", error instanceof Error ? { message: error.message, stack: error.stack } : error);
   });
-  console.log(`🚀 Fusion Starter server running on port ${port}`);
-  console.log(`📱 Frontend: http://localhost:${port}`);
-  console.log(`🔧 API: http://localhost:${port}/api`);
+  const runningOnRender = process.env.RENDER === "true" || Boolean(process.env.RENDER_EXTERNAL_URL);
+  console.log(`Fusion Starter server running on port ${port}`);
+  console.log(`Running on Render: ${runningOnRender}`);
+  console.log(`Frontend: http://localhost:${port}`);
+  console.log(`API: http://localhost:${port}/api`);
 });
 
 // Graceful shutdown

@@ -52,9 +52,11 @@ export async function initializeDatabase() {
       prize_pool NUMERIC(12, 2) NOT NULL DEFAULT 0,
       called_numbers INTEGER[] NOT NULL DEFAULT '{}',
       current_number INTEGER,
+      selecting_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     ALTER TABLE games ADD COLUMN IF NOT EXISTS game_type TEXT NOT NULL DEFAULT '90';
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS selecting_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     ALTER TABLE games DROP CONSTRAINT IF EXISTS games_game_type_check;
     ALTER TABLE games ADD CONSTRAINT games_game_type_check CHECK (game_type IN ('90', '75'));
     CREATE INDEX IF NOT EXISTS games_active_type_idx ON games(game_type, status, created_at);
@@ -322,14 +324,17 @@ export async function getCardCatalog(gameType: GameType = "90") {
   return result.rows;
 }
 
-export async function getActiveGame(gameType: GameType = "90") {
+export async function getActiveGame(gameType: GameType = "90", userId?: number) {
   if (!db) throw new Error("DATABASE_URL is not configured");
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock($1)", [90210]);
+    // Keep the 90-ball and 75-ball game lifecycles independent. A shared
+    // advisory lock here lets activity in one mode serialize acquisition of
+    // the other mode's game, especially during concurrent joins/ticks.
+    await client.query("SELECT pg_advisory_xact_lock($1, $2)", [90210, gameType === "75" ? 75 : 90]);
     const result = await client.query(
-      `SELECT id, status, prize_pool, called_numbers, current_number
+      `SELECT id, status, prize_pool, called_numbers, current_number, selecting_started_at
        FROM games
        WHERE status IN ('selecting', 'playing') AND game_type = $1
        ORDER BY created_at ASC
@@ -338,11 +343,21 @@ export async function getActiveGame(gameType: GameType = "90") {
     const game = result.rowCount
       ? result.rows[0]
       : (await client.query(
-          "INSERT INTO games (status, game_type) VALUES ('selecting', $1) RETURNING id, status, prize_pool, called_numbers, current_number, game_type",
+          "INSERT INTO games (status, game_type) VALUES ('selecting', $1) RETURNING id, status, prize_pool, called_numbers, current_number, selecting_started_at, game_type",
           [gameType],
         )).rows[0];
+    const occupiedResult = userId && game.status === "selecting"
+      ? await client.query(
+          "SELECT card_number FROM game_cards WHERE game_id = $1 AND user_id <> $2",
+          [game.id, userId],
+        )
+      : { rows: [] as Array<{ card_number: number }> };
+    const occupiedCardNumbers = occupiedResult.rows.map((row) => {
+      const cardNumber = Number(row.card_number);
+      return gameType === "75" ? cardNumber - 400 : cardNumber;
+    });
     await client.query("COMMIT");
-    return game;
+    return { ...game, occupiedCardNumbers };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -356,6 +371,9 @@ export async function persistSelectedCards(gameId: string, userId: number, cardN
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    const gameStatus = await client.query("SELECT status FROM games WHERE id = $1 AND game_type = $2 FOR UPDATE", [gameId, gameType]);
+    if (!gameStatus.rowCount) throw new Error("Game not found");
+    if (gameStatus.rows[0].status !== "selecting") throw new Error("ጨዋታ እየተካሄደ ነው");
     const storedCards = gameType === "75" ? cardNumbers.map((n) => n + 400) : cardNumbers;
     const validCards = await client.query(
       "SELECT card_number FROM bingo_cards WHERE game_type = $1 AND card_number = ANY($2::int[])",
@@ -412,8 +430,8 @@ export async function advanceSelectingGame(gameType?: GameType) {
      LEFT JOIN game_cards gc ON gc.game_id = g.id
      WHERE g.status = 'selecting'
        AND ($1::text IS NULL OR g.game_type = $1)
-     GROUP BY g.id, g.created_at
-     HAVING NOW() - g.created_at >= INTERVAL '20 seconds'
+     GROUP BY g.id, g.created_at, g.selecting_started_at
+     HAVING NOW() - g.selecting_started_at >= INTERVAL '50 seconds'
      ORDER BY g.created_at ASC
      LIMIT 1`,
     [gameType ?? null],
@@ -424,7 +442,7 @@ export async function advanceSelectingGame(gameType?: GameType) {
     await db.query("UPDATE games SET status = 'playing' WHERE id = $1 AND status = 'selecting'", [gameId]);
     return { gameId, started: true };
   }
-  await db.query("UPDATE games SET created_at = NOW() WHERE id = $1 AND status = 'selecting'", [gameId]);
+  await db.query("UPDATE games SET selecting_started_at = NOW(), created_at = NOW() WHERE id = $1 AND status = 'selecting'", [gameId]);
   return { gameId, started: false };
 }
 
@@ -481,7 +499,7 @@ export async function claimGameWinners(gameId: string, gameType: GameType = "90"
 export async function readGameState(gameId: string) {
   if (!db) throw new Error("DATABASE_URL is not configured");
   const result = await db.query(
-    `SELECT g.id, g.status, g.prize_pool, g.called_numbers, g.current_number,
+    `SELECT g.id, g.status, g.prize_pool, g.called_numbers, g.current_number, g.selecting_started_at,
             COUNT(DISTINCT gc.user_id)::int AS player_count
      FROM games g
      LEFT JOIN game_cards gc ON gc.game_id = g.id
@@ -489,7 +507,16 @@ export async function readGameState(gameId: string) {
      GROUP BY g.id`,
     [gameId],
   );
-  return result.rows[0];
+  if (!result.rowCount) return null;
+  const winners = await db.query(
+    `SELECT w.user_id AS "userId", u.display_name AS "displayName",
+            w.card_number AS "cardNumber", w.winning_rows AS rows,
+            w.prize_amount AS "prizeAmount"
+     FROM winners w JOIN users u ON u.id = w.user_id
+     WHERE w.game_id = $1 ORDER BY w.id`,
+    [gameId],
+  );
+  return { ...result.rows[0], winners: winners.rows };
 }
 
 export async function callNextNumber(gameId: string, gameType: GameType = "90") {
@@ -497,6 +524,8 @@ export async function callNextNumber(gameId: string, gameType: GameType = "90") 
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    const lock = await client.query("SELECT pg_try_advisory_xact_lock($1, hashtext($2)) AS acquired", [90212, gameId]);
+    if (!lock.rows[0].acquired) { await client.query("ROLLBACK"); return null; }
     const gameResult = await client.query(
       "SELECT called_numbers FROM games WHERE id = $1 AND status = 'playing' FOR UPDATE",
       [gameId],

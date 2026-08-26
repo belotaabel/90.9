@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
@@ -9,6 +9,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { io } from "socket.io-client";
+import type { BingoWinner } from "@shared/api";
 
 type Cell = number | null;
 type Card = { card_number: number; rows: Cell[][] };
@@ -26,6 +27,8 @@ type GameState = {
   playerCount: number;
   prizeAmount: number;
   status: string;
+  winners: BingoWinner[];
+  selectionEndsAt: string | null;
 };
 declare global {
   interface Window {
@@ -85,39 +88,48 @@ function CardView({
 export default function Index() {
   const [screen, setScreen] = useState<"landing" | "selection">("landing");
   const [gameType, setGameType] = useState<GameType>("90");
+  // The gateway selects the configured game service from the gameType query parameter.
+  // Empty bases preserve the local same-origin development fallback.
+  const apiBase = "";
+  const socketBase = "";
   const [user, setUser] = useState<User | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
-  const [selected, setSelected] = useState<number[]>(() => {
+  const [selected, setSelected] = useState<number[]>([]);
+  const selectionLoaded = useRef(false);
+
+  const selectionScope = user ? String(user.telegram_id) : "anonymous";
+  const selectionKey = `neon-${gameType}-selected-cards-${selectionScope}`;
+  const readSelected = (key: string) => {
     try {
-      const saved = JSON.parse(localStorage.getItem("neon-90-selected-cards") ?? "[]");
-      return Array.isArray(saved) ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2) : [];
+      const saved = JSON.parse(localStorage.getItem(key) ?? "[]");
+      return Array.isArray(saved)
+        ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2)
+        : [];
     } catch {
       return [];
     }
-  });
+  };
   const [called, setCalled] = useState<Set<number>>(new Set());
   const [currentBall, setCurrentBall] = useState<number | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(20);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [selectionEndsAt, setSelectionEndsAt] = useState<string | null>(null);
+  const [selectionGameStatus, setSelectionGameStatus] = useState<string | null>(null);
+  const [occupiedCardIds, setOccupiedCardIds] = useState<Set<number>>(new Set());
   const [playing, setPlaying] = useState(false);
   const [notice, setNotice] = useState("ካርዶች እየተጫኑ ነው...");
   const [panel, setPanel] = useState<"profile" | "wallet" | null>(null);
   useEffect(() => {
-    const key = `neon-${gameType}-selected-cards`;
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? "[]");
-      setSelected(
-        Array.isArray(saved)
-          ? saved.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400).slice(0, 2)
-          : [],
-      );
-    } catch {
-      setSelected([]);
-    }
-  }, [gameType]);
+    if (!authLoaded) return;
+    selectionLoaded.current = false;
+    setSelected(readSelected(selectionKey));
+    selectionLoaded.current = true;
+  }, [authLoaded, selectionKey]);
   useEffect(() => {
-    localStorage.setItem(`neon-${gameType}-selected-cards`, JSON.stringify(selected));
-  }, [selected, gameType]);
+    if (!authLoaded || !selectionLoaded.current) return;
+    localStorage.setItem(selectionKey, JSON.stringify(selected));
+  }, [authLoaded, selected, selectionKey]);
   const initData =
     window.Telegram?.WebApp?.initData ||
     new URLSearchParams(window.location.hash.replace(/^#/, "")).get(
@@ -130,9 +142,10 @@ export default function Index() {
     window.Telegram?.WebApp?.ready?.();
     if (!initData) {
       setNotice("ጨዋታውን ለመጫወት Telegram ውስጥ ይክፈቱ።");
+      setAuthLoaded(true);
       return;
     }
-    fetch("/api/me", { headers: { "x-telegram-init-data": initData } })
+    fetch(`${apiBase}/api/me`, { headers: { "x-telegram-init-data": initData } })
       .then(async (r) => {
         if (!r.ok)
           throw new Error(
@@ -142,40 +155,45 @@ export default function Index() {
           );
         setUser(await r.json());
       })
-      .catch((e) => setNotice(e.message));
-  }, [initData]);
+      .catch((e) => setNotice(e.message))
+      .finally(() => setAuthLoaded(true));
+  }, [initData, apiBase]);
   useEffect(() => {
-    fetch(`/api/game/cards?mode=${gameType}`)
+    const url = `${apiBase}/api/game?gameType=${gameType}${user ? `&userId=${user.id}` : ""}`;
+    const applyGameInfo = (activeGame: { status?: string; occupiedCardNumbers?: unknown } | null) => {
+      if (!activeGame) return;
+      setSelectionGameStatus(activeGame.status ?? null);
+      setSelectionEndsAt(typeof (activeGame as any).selecting_started_at === "string" ? new Date(new Date((activeGame as any).selecting_started_at).getTime() + 50000).toISOString() : null);
+      if (activeGame.status === "playing") setPlaying(true);
+      setOccupiedCardIds(new Set(Array.isArray(activeGame.occupiedCardNumbers) ? activeGame.occupiedCardNumbers.filter((id): id is number => Number.isInteger(id) && id >= 1 && id <= 400) : []));
+    };
+    fetch(url).then((r) => r.ok ? r.json() : null).then(applyGameInfo).catch(() => { setSelectionGameStatus(null); setOccupiedCardIds(new Set()); });
+    const statusTimer = window.setInterval(() => fetch(url).then((r) => r.ok ? r.json() : null).then(applyGameInfo).catch(() => undefined), 2000);
+    return () => window.clearInterval(statusTimer);
+  }, [gameType, apiBase, user]);
+  useEffect(() => {
+    fetch(`${apiBase}/api/game/cards?gameType=${gameType}`)
       .then(async (r) => {
         if (!r.ok) throw new Error("Card catalog unavailable");
         setCards(await r.json());
         setNotice("");
       })
       .catch((e) => setNotice(e.message));
-  }, [gameType]);
+  }, [gameType, apiBase]);
   useEffect(() => {
-    if (playing || countdown === null || countdown <= 0) return;
-    const timer = window.setTimeout(() => setCountdown(countdown - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [countdown, playing]);
-  useEffect(() => {
-    if (countdown === 0) {
-      if (screen !== "selection") {
-        setCountdown(20);
-        return;
-      }
-      if (selected.length) {
-        setPlaying(true);
-        setCountdown(null);
-      } else {
-        setCountdown(20);
-        setNotice("ቢያንስ አንድ ካርድ ይምረጡ።");
-      }
-    }
-  }, [countdown, selected.length]);
+    if (playing || !selectionEndsAt) return;
+    const update = () => setCountdown(Math.max(0, Math.ceil((Date.parse(selectionEndsAt) - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [selectionEndsAt, playing]);
   useEffect(() => {
     if (!playing || !user) return;
-    const socket = io({ transports: ["polling", "websocket"], upgrade: false });
+    const socket = io(socketBase || undefined, {
+      transports: ["polling", "websocket"],
+      upgrade: false,
+      query: { gameType },
+    });
     socket.on("connect", () => {
       setNotice("");
       socket.emit("game:join", { playerId: user.id, cardNumbers: selected, gameType });
@@ -193,15 +211,18 @@ export default function Index() {
       socket.emit("game:leave");
       socket.disconnect();
     };
-  }, [playing, user, selected, gameType]);
+  }, [playing, user, selected, gameType, socketBase]);
   const cardIdentifiers = useMemo(
     () => Array.from({ length: 400 }, (_, index) => index + 1),
     [],
   );
-  const cardForId = (id: number) =>
-    cards.find((card) => card.card_number === id) ??
-    (gameType === "75" ? cards.find((card) => card.card_number === id + 400) : undefined);
-  const toggle = (id: number) =>
+  const cardForId = (id: number) => {
+    const visibleId = gameType === "75" && id > 400 ? id - 400 : id;
+    return cards.find((card) => card.card_number === visibleId);
+  };
+  const selectionLocked = selectionGameStatus === "playing";
+  const toggle = (id: number) => {
+    if (selectionLocked || occupiedCardIds.has(id)) return;
     setSelected((old) =>
       old.includes(id)
         ? old.filter((x) => x !== id)
@@ -209,24 +230,39 @@ export default function Index() {
           ? [...old, id]
           : old,
     );
+  };
   const start = () => {
+    if (selectionLocked) return setNotice("ጨዋታ እየተካሄደ ነው");
     if (!user) return setNotice("Telegram authentication is required.");
-    if (!selected.length) return setNotice("ቢያንስ አንድ ካርድ ይምረጡ።");
-    setCountdown(5);
+    if (!selected.length) return setNotice("");
     setNotice("ጨዋታው ይጀምራል...");
   };
-  const winnerCardIds = selected.filter((id) => {
-    const card = cardForId(id);
-    return (
-      card?.rows.filter((row) =>
-        row
-          .filter((cell): cell is number => cell !== null && cell !== 0)
-          .every((cell) => called.has(cell)),
-      ).length ?? 0
-    ) >= 2;
-  });
+  const winningLines = (card: Card | undefined) => {
+    if (!card) return [];
+    const complete = (values: Cell[]) =>
+      values.every((cell) => cell === null || cell === 0 || called.has(cell));
+    const rows = card.rows
+      .map((row, index) => (complete(row) ? index + 1 : null))
+      .filter((line): line is number => line !== null);
+    if (gameType === "90") return rows;
+
+    const columns = card.rows[0]
+      ?.map((_, columnIndex) =>
+        complete(card.rows.map((row) => row[columnIndex])) ? columnIndex + 6 : null,
+      )
+      .filter((line): line is number => line !== null) ?? [];
+    const diagonals = [
+      complete(card.rows.map((row, index) => row[index])) ? 11 : null,
+      complete(card.rows.map((row, index) => row[4 - index])) ? 12 : null,
+    ].filter((line): line is number => line !== null);
+    const corners = [card.rows[0]?.[0], card.rows[0]?.[4], card.rows[4]?.[0], card.rows[4]?.[4]]
+      .every((cell) => cell !== undefined && (cell === 0 || called.has(cell)));
+    return [...rows, ...columns, ...diagonals, ...(corners ? [13] : [])];
+  };
+  const winners = game?.winners ?? [];
+  const winner = winners.length > 0;
+  const winnerCardIds = winners.map((winner) => winner.cardNumber);
   const winnerCardId = winnerCardIds[0] ?? null;
-  const winner = winnerCardIds.length > 0;
   useEffect(() => {
     if (!winner || !playing) return;
     const resetTimer = window.setTimeout(() => {
@@ -236,23 +272,12 @@ export default function Index() {
       setCalled(new Set());
       setCurrentBall(null);
       setSelected([]);
-      setCountdown(20);
-      setNotice("አዲስ ጨዋታ ለመምረጥ ካርድዎን ይምረጡ።");
-    }, 5000);
+      setCountdown(50);
+      setNotice("");
+    }, 8000);
     return () => window.clearTimeout(resetTimer);
   }, [winner, playing]);
-  const winningRows =
-    winnerCardId === null
-      ? []
-      : (cards.find((item) => item.card_number === winnerCardId)?.rows ?? [])
-          .map((row, index) =>
-            row
-              .filter((cell): cell is number => cell !== null && cell !== 0)
-              .every((cell) => called.has(cell))
-              ? index + 1
-              : null,
-          )
-          .filter((row): row is number => row !== null);
+  const winningRows = winningLines(cardForId(winnerCardId ?? -1));
   if (screen === "landing")
     return (
       <main className="app-shell landing-shell">
@@ -277,7 +302,7 @@ export default function Index() {
           className="landing-start"
           onClick={() => {
             setScreen("selection");
-            setNotice("ካርድዎን ይምረጡ። ቀሪው ጊዜ ሲያልቅ ጨዋታው ይጀምራል።");
+            setNotice("");
           }}
         >
           ጨዋታ ጀምር <b>→</b>
@@ -287,11 +312,11 @@ export default function Index() {
     );
   if (playing)
     return (
-      <main className="app-shell">
+      <main className="app-shell playing-shell">
         <header className="topbar">
           <button
             className="icon-button"
-            onClick={() => { setPlaying(false); setCountdown(20); }}
+            onClick={() => { setPlaying(false); setCountdown(50); }}
             aria-label="Back"
           >
             <ArrowLeft />
@@ -325,26 +350,21 @@ export default function Index() {
         </section>
         <section className="draw">
           <p>የአሁኑ ቁጥር</p>
-          <div className="orb">{currentBall ?? "—"}</div>
+          <div className="current-ball-layout">
+            <strong className="ball-letter">{currentBall === null ? "—" : gameType === "75" ? (currentBall <= 15 ? "B" : currentBall <= 30 ? "I" : currentBall <= 45 ? "N" : currentBall <= 60 ? "G" : "O") : ""}</strong>
+            <div className="orb">{currentBall ?? "—"}</div>
+            <span className="called-count">{called.size}/{gameType === "75" ? 75 : 90}</span>
+          </div>
         </section>
-        {gameType === "75" ? (
-          <section className="number-board number-board-75" aria-label="75-ball number board">
-            {['B', 'I', 'N', 'G', 'O'].map((letter, rowIndex) => (
-              <div className="number-board-row" key={letter}>
-                <b className="number-board-label">{letter}</b>
-                {Array.from({ length: 15 }, (_, index) => rowIndex * 15 + index + 1).map((n) => (
-                  <button key={n} className={called.has(n) ? "active" : ""}>{n}</button>
-                ))}
-              </div>
+        <section className="ball-history" aria-label="Called ball history">
+          <h2>የኳስ ማሽን</h2>
+          <div className="ball-history-list">
+            {(game?.calledNumbers ?? []).slice(-45).reverse().map((number, index) => (
+              <span key={`${number}-${index}`} className={`ball-cell ${number === currentBall ? "latest" : ""}`} style={{ animationDelay: `${index * 35}ms` }}>{number}</span>
             ))}
-          </section>
-        ) : (
-          <section className="number-board" aria-label="90-ball number board">
-            {Array.from({ length: 90 }, (_, i) => i + 1).map((n) => (
-              <button key={n} className={called.has(n) ? "active" : ""}>{n}</button>
-            ))}
-          </section>
-        )}
+            {!game?.calledNumbers?.length && <small>እስካሁን ኳስ አልተጠራም</small>}
+          </div>
+        </section>
         <section className="tickets">
           {selected.map((id) => {
             const card = cardForId(id);
@@ -370,16 +390,16 @@ export default function Index() {
               ))}
             </div>
             <div className="winner-modal" role="status">
-              <div className="winner-badge">BINGO!</div>
-              <h2>{winnerCardIds.length > 1 ? "አሸናፊዎች ተገኝተዋል" : "አሸናፊ ተገኝቷል"}</h2>
-              <div className="winner-prize">{((game?.prizeAmount ?? 0) / winnerCardIds.length).toFixed(2)} ብር / እያንዳንዱ</div>
-              <p>የአሸናፊው ስም: <b>{user?.display_name}</b></p>
-              <p>የአሸናፊ ካርዶች: <b>{winnerCardIds.join(", ")}</b></p>
-              <p>የተዘጉ መስመሮች: <b>{winningRows.join(", ")}</b></p>
-              {winnerCardIds.length <= 3 && <div className="winner-card-preview">
-                {winnerCardIds.map((id) => { const card = cardForId(id); return card && <CardView key={id} card={card} selected called={called} onClick={() => undefined} />; })}
-              </div>}
-              {winnerCardIds.length > 3 && <small>ከ{winnerCardIds.length} አሸናፊዎች የተነሳ card previews አልታዩም።</small>}
+              <div className="winner-crown" aria-hidden="true">♛</div>
+              <div className="winner-badge"><span>🎉</span> BINGO! <span>🎉</span></div>
+              <h2>{winners.length > 1 ? "አሸናፊዎች ተገኝተዋል" : "አሸናፊ ተገኝቷል"}</h2>
+              <div className="winner-prize">{((game?.prizeAmount ?? 0) / winners.length).toFixed(2)} ብር / እያናቸው</div>
+              <p>የአሸናፊው ስም: <b>{winners.map((item) => item.displayName).join(", ")}</b></p>
+              <p>የአሸናፊ ካርዶች: <b>{winnerCardIds.map((id) => gameType === "75" ? (id > 400 ? id - 400 : id) : id).join(", ")}</b></p>
+              <p>የተዘጉ መስመሮች: <b>{winners.map((item) => item.rows.map((row) => row <= 5 ? `መስመር ${row}` : row === 13 ? "አራት ማዕዘኖች" : row === 11 ? "ዲያጎናል 1" : row === 12 ? "ዲያጎናል 2" : `አምድ ${row - 5}`).join(", ")).join("; ")}</b></p>
+              <div className="winner-card-preview">
+                {winnerCardIds.slice(0, 1).map((id, index) => { const card = cardForId(id); return card && <div className="winner-card-item" key={id}><small>ካርድ #{gameType === "75" && id > 400 ? id - 400 : id}</small><CardView card={card} selected called={called} onClick={() => undefined} gameType={gameType} /><span>የዘጋው: {winners[index]?.rows.map((row) => row <= 5 ? `መስመር ${row}` : row === 13 ? "አራት ማዕዘኖች" : row === 11 || row === 12 ? "ዲያጎናል" : `አምድ ${row - 5}`).join(", ")}</span></div>; })}
+              </div>
               <small>አዲስ ጨዋታ በቅርቡ ይጀምራል...</small>
             </div>
           </>
@@ -436,17 +456,19 @@ export default function Index() {
         </div>
       </section>
       <div className="selection-countdown" aria-live="polite">
-        <span>ጨዋታው ይጀምራል</span>
-        <b>{countdown ?? 20}</b>
+        <span>{selectionLocked ? "ጨዋታ እየተካሄደ ነው" : "ጨዋታው ይጀምራል"}</span>
+        <b>{selectionLocked ? "00" : countdown ?? 50}</b>
         <small>ሰከንድ</small>
       </div>
       <section className="number-grid" aria-label="Card identifiers">
         {cardIdentifiers.map((id) => (
           <button
             key={id}
-            className={selected.includes(id) ? "active" : ""}
+            className={`${selected.includes(id) ? "active" : ""} ${occupiedCardIds.has(id) ? "occupied" : ""}`}
             onClick={() => toggle(id)}
+            disabled={selectionLocked || occupiedCardIds.has(id)}
             aria-pressed={selected.includes(id)}
+            aria-label={occupiedCardIds.has(id) ? `Card ${id}, occupied` : `Card ${id}`}
           >
             {id}
           </button>
@@ -484,7 +506,7 @@ export default function Index() {
       )}
       <button
         className="start-button"
-        disabled={!selected.length || countdown !== null}
+        disabled={selectionLocked || !selected.length || countdown !== null}
         onClick={start}
       >
         {countdown !== null ? `ይጀምራል ${countdown}` : "ጨዋታ ጀምር"}
