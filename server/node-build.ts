@@ -38,9 +38,11 @@ httpServer.listen(port, () => {
   void registerTelegramWebhook().catch((error) => {
     console.error("Telegram webhook registration failed", error instanceof Error ? { message: error.message, stack: error.stack } : error);
   });
-  console.log(`🚀 Fusion Starter server running on port ${port}`);
-  console.log(`📱 Frontend: http://localhost:${port}`);
-  console.log(`🔧 API: http://localhost:${port}/api`);
+  const runningOnRender = process.env.RENDER === "true" || Boolean(process.env.RENDER_EXTERNAL_URL);
+  console.log(`Fusion Starter server running on port ${port}`);
+  console.log(`Running on Render: ${runningOnRender}`);
+  console.log(`Frontend: http://localhost:${port}`);
+  console.log(`API: http://localhost:${port}/api`);
 });
 
 // Graceful shutdown
