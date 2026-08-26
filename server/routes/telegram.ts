@@ -27,11 +27,15 @@ function contactRequestMenu() {
 }
 
 async function sendTelegramMessage(token: string, chatId: number, payload: Record<string, unknown>) {
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, ...payload }),
   });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Telegram sendMessage failed (${response.status}): ${details}`);
+  }
 }
 
 export const handleTelegramWebhook: RequestHandler = async (req, res) => {
@@ -66,6 +70,12 @@ export const handleTelegramWebhook: RequestHandler = async (req, res) => {
   }
 
   if (text === "/start" || (typeof text === "string" && text.startsWith("/start "))) {
+    // Reply before touching the database. A database outage must not make Telegram
+    // wait for (and eventually retry) the /start update without a response.
+    await sendTelegramMessage(token, chatId, {
+      text: "እንኳን ወደ 90Bingo በደህና መጡ! ከታች ያለውን ምናሌ ይጠቀሙ።",
+      reply_markup: mainMenu(miniAppUrl),
+    });
     if (message.from?.id) {
       const name = [message.from.first_name, message.from.last_name].filter(Boolean).join(" ");
       try {
@@ -78,10 +88,6 @@ export const handleTelegramWebhook: RequestHandler = async (req, res) => {
         console.error("Telegram /start user registration failed", error);
       }
     }
-    await sendTelegramMessage(token, chatId, {
-      text: "እንኳን ወደ 90Bingo በደህና መጡ! ከታች ያለውን ምናሌ ይጠቀሙ።",
-      reply_markup: mainMenu(miniAppUrl),
-    });
   } else if (contact && contact.user_id === message.from?.id) {
     const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
     try {
