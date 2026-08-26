@@ -282,7 +282,7 @@ export default function Index() {
           className="landing-start"
           onClick={() => {
             setScreen("selection");
-            setNotice("ካርድዎን ይምረጡ። ቀሪው ጊዜ ሲያልቅ ጨዋታው ይጀምራል።");
+            setNotice("");
           }}
         >
           ጨዋታ ጀምር <b>→</b>
