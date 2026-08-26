@@ -101,6 +101,10 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .winner-modal p { margin: 8px 0; font-family: "Noto Sans Ethiopic", sans-serif; }
 .winner-prize { color: #5cefff; font-size: 20px; font-weight: 800; }
 .winner-modal small { display: block; margin-top: 14px; color: #b8c9e4; font-family: "Noto Sans Ethiopic", sans-serif; }
+.winner-card-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
+.winner-card-item { min-width: 0; padding: 8px; border: 1px solid #397dff; border-radius: 14px; background: #0b1642aa; box-shadow: inset 0 0 12px #152d75; }
+.winner-card-item > small { margin: 0 0 6px; color: #72e9ff; font-weight: 800; }
+.winner-card-item > span { display: block; margin-top: 7px; color: #ffe55e; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 11px; font-weight: 700; }
 @keyframes confetti-fall { to { transform: translateY(110svh) rotate(540deg); } }
 .landing-shell { display: flex; position: relative; flex-direction: column; justify-content: center; min-height: 100svh; isolation: isolate; background: radial-gradient(circle at 50% 28%, rgba(41, 179, 255, .28), transparent 32%), linear-gradient(160deg, #081a4b, #070b2a 55%, #020817); }
 .landing-content { position: relative; z-index: 1; text-align: center; }.landing-kicker { color: #8eeeff; font-size: 12px; font-weight: 800; letter-spacing: .28em; }.landing-content h2 { margin: 14px 0 0; color: #f7fbff; font-size: clamp(54px, 16vw, 88px); line-height: .88; letter-spacing: -.07em; text-shadow: 0 0 34px rgba(45, 209, 255, .65); }.landing-content h2 strong { color: transparent; background: linear-gradient(140deg, #fff, #ff57dc 45%, #46d9ff); -webkit-background-clip: text; background-clip: text; }.landing-content h2 em { color: #47d9e8; font-style: normal; }.landing-content p { max-width: 330px; margin: 28px auto 22px; color: #b8c9e4; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 15px; line-height: 1.7; }.mode-choice { display: flex; justify-content: center; gap: 14px; margin: 28px auto 0; }
