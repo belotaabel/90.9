@@ -48,11 +48,12 @@ button:focus-visible { outline: 2px solid #7df4ff; outline-offset: 3px; }
 .orb { display: grid; width: 116px; height: 116px; margin: auto; place-items: center; border: 4px solid #5de8ff; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #76dfff, #4121bd 42%, #b100db 75%, #21106e); box-shadow: 0 0 10px #1ee6ff, 0 0 30px #6244ff, inset 0 0 22px #e253ff; font-size: 64px; font-weight: 800; }
 
 .number-board-columns { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 5px; margin: 12px 0 5px; color: #ffe55e; text-align: center; font-size: 13px; }
-.ball-history { margin: 18px 0 20px; padding: 14px; border: 1px solid #1c713b; border-radius: 18px; background: linear-gradient(145deg, #061c12, #0a2d1a); box-shadow: 0 0 14px #0d552d, inset 0 0 14px #0a3b20; }
-.ball-history h2 { margin: 0 0 10px; color: #f1e76a; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 15px; }
-.ball-history-list { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px; min-height: 22px; max-height: 80px; overflow: hidden; align-items: center; }
-.ball-history-list .ball-cell { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; background: #173d26; color: #9ab3a0; font-size: 12px; font-weight: 700; animation: ball-drop .55s cubic-bezier(.2,.85,.35,1.25) both; }
-@keyframes ball-drop { 0% { opacity: 0; transform: translateY(-28px) scale(.55) rotateX(70deg); } 65% { opacity: 1; transform: translateY(4px) scale(1.08) rotateX(-8deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotateX(0); } }
+.ball-history { position: relative; margin: 18px 0 20px; padding: 13px 14px; border: 2px solid #1c713b; border-radius: 30px 48px 30px 48px; background: linear-gradient(145deg, #041b10, #0b321c); box-shadow: 0 0 16px #0d552d, inset 0 0 16px #0a3b20; overflow: hidden; }
+.ball-history::before { content: ""; position: absolute; inset: 28px 10px 10px; border: 2px solid #1a6938; border-radius: 22px 42px 22px 42px; opacity: .7; box-shadow: inset 0 0 8px #0b5b2d; pointer-events: none; }
+.ball-history h2 { position: relative; z-index: 1; margin: 0 0 10px; color: #f1e76a; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 15px; }
+.ball-history-list { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px; min-height: 22px; max-height: 80px; overflow: hidden; align-items: center; }
+.ball-history-list .ball-cell { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #2b7b45; border-radius: 50%; background: radial-gradient(circle at 32% 25%, #8bd69b, #28683b 38%, #0b2c18 82%); color: #c4dfc9; font-size: 11px; font-weight: 700; animation: ball-roll .7s cubic-bezier(.2,.8,.3,1) both; box-shadow: 2px 3px 5px #020b05; }
+@keyframes ball-roll { 0% { opacity: 0; transform: translate(-34px, -20px) rotate(-180deg) scale(.55); } 65% { opacity: 1; transform: translate(5px, 3px) rotate(18deg) scale(1.08); } 100% { opacity: 1; transform: translate(0) rotate(0) scale(1); } }
 .ball-history-list span.latest { background: linear-gradient(145deg, #f4f526, #c5ce12); box-shadow: 0 0 10px #e7ed22; color: #273215; }
 .ball-history-list small { color: #789583; font-family: "Noto Sans Ethiopic", sans-serif; font-size: 12px; }
 .number-board { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 8px; width: 100%; overflow: hidden; }
